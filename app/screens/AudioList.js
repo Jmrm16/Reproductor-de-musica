@@ -1,84 +1,86 @@
 import React, { Component } from 'react';
 import { View, Text, StyleSheet, FlatList } from 'react-native';
-import { AudioContext, currentAudioIndex } from '../context/AudioProviders';
+import { AudioContext } from '../context/AudioProviders';
 import AudioListItem from '../components/AudioListItem';
-import { BlurView } from 'expo-blur';
 import OptionModal from '../components/OptionModal';
-import{Audio} from 'expo-av';
-import {play,pause,resume,playNext} from '../misc/audioController'
-
+import { Audio } from 'expo-av';
+import { play, pause, resume, playNext } from '../misc/audioController';
 
 export class AudioList extends Component {
   static contextType = AudioContext;
+
   constructor(props) {
-  super(props);
-  this.state = {
-    optionModalVisible: false,
-
+    super(props);
+    this.state = {
+      optionModalVisible: false,
+    };
+    this.currentItem = {};
   }
-  this.currentItem = {}
-}
 
-
-  // Función para formatear la duración en segundos a "mm:ss"
+  // Formatea la duración en segundos a "mm:ss"
   formatTime = (seconds) => {
     const minutes = Math.floor(seconds / 60);
     const remainingSeconds = Math.floor(seconds % 60);
     return `${minutes}:${remainingSeconds < 10 ? '0' : ''}${remainingSeconds}`;
   };
 
+  // Listener para actualizar el estado de la reproducción
+  onPlaybackStatusUpdate = (playbackStatus) => {
+    if (playbackStatus.isLoaded) {
+      this.context.updateState(this.context, {
+        playbackPosition: playbackStatus.positionMillis,
+        playbackDuration: playbackStatus.durationMillis,
+      });
 
 
-  handleAudioPress = async audio => {
+    }
+  };
+
+  handleAudioPress = async (audio) => {
     const { soundObj, playbackObj, currentAudio, updateState, audioFiles } = this.context;
-    // playing audio for the first time.
-    if (soundObj === null) {
-        const playbackObj = new Audio.Sound();
-        const status = await play(playbackObj, audio.uri);
-        const index =audioFiles.indexOf(audio);
-        return updateState(this.context, {
-            currentAudio: audio,
-            playbackObj: playbackObj,
-            soundObj: status,
-            isPlaying:true,
-            currentAudioIndex: index,
-        });
-    }
-      // pause
-      if (soundObj.isLoaded && soundObj.isPlaying && currentAudio.id === audio.id) {
-        const status = await pause(playbackObj);
-        return updateState(this.context, { soundObj: status, isPlaying:false});
-    }
-    
-    
-    // resumen
-    if (
-      soundObj.isLoaded &&
-      !soundObj.isPlaying &&
-      currentAudio.id === audio.id
-  ) {
-      const status = await resume(playbackObj);
-      return updateState(this.context, { soundObj: status, isPlaying:true });
-  }
 
-if (soundObj.isLoaded && currentAudio.id !== audio.id) {
-    const status = await playNext(playbackObj, audio.uri);
-    const index =audioFiles.indexOf(audio);
-    return updateState(this.context, {
+    // Reproducción inicial
+    if (soundObj === null) {
+      const playbackObj = new Audio.Sound();
+      playbackObj.setOnPlaybackStatusUpdate(this.onPlaybackStatusUpdate); // Configura el listener antes de reproducir
+      const status = await play(playbackObj, audio.uri);
+      const index = audioFiles.indexOf(audio);
+      return updateState(this.context, {
+        currentAudio: audio,
+        playbackObj: playbackObj,
+        soundObj: status,
+        isPlaying: true,
+        currentAudioIndex: index,
+      });
+    }
+
+    // Pausa
+    if (soundObj.isLoaded && soundObj.isPlaying && currentAudio.id === audio.id) {
+      const status = await pause(playbackObj);
+      return updateState(this.context, { soundObj: status, isPlaying: false });
+    }
+
+    // Reanudar
+    if (soundObj.isLoaded && !soundObj.isPlaying && currentAudio.id === audio.id) {
+      const status = await resume(playbackObj);
+      return updateState(this.context, { soundObj: status, isPlaying: true });
+    }
+
+    // Reproducción de otro audio
+    if (soundObj.isLoaded && currentAudio.id !== audio.id) {
+      const status = await playNext(playbackObj, audio.uri);
+      const index = audioFiles.indexOf(audio);
+      return updateState(this.context, {
         currentAudio: audio,
         soundObj: status,
         isPlaying: true,
         currentAudioIndex: index,
-    });
-}
-
-
-};
-
-
+      });
+    }
+  };
 
   render() {
-    const { audioFiles } = this.context;
+    const { audioFiles, isPlaying, currentAudioIndex } = this.context;
 
     // Categorías (opcional)
     const categories = [
@@ -120,15 +122,15 @@ if (soundObj.isLoaded && currentAudio.id !== audio.id) {
             </>
           }
           data={audioFiles}
-          renderItem={({type, item, index}) => (
+          renderItem={({ item, index }) => (
             <AudioListItem
               title={item.filename} // Nombre del archivo
-              const isPlaying ={ this.context.isPlaying}
-              activeListItem={this.context.currentAudioIndex === index}
+              isPlaying={isPlaying}
+              activeListItem={currentAudioIndex === index}
               duration={this.formatTime(item.duration)} // Duración formateada
-              onAudioPress={ ()=> this.handleAudioPress(item)}
+              onAudioPress={() => this.handleAudioPress(item)}
               onOptionPress={() => {
-                this.currentItem = item
+                this.currentItem = item;
                 this.setState({ optionModalVisible: true }); // Muestra el modal al presionar opciones
               }}
             />
@@ -139,9 +141,9 @@ if (soundObj.isLoaded && currentAudio.id !== audio.id) {
 
         {/* Modal de opciones */}
         <OptionModal
-          onPlayPress={()=> console.log('Play')}
-          onPlayListPress={()=> console.log('lista ')}
-          currentItem ={this.currentItem}
+          onPlayPress={() => console.log('Play')}
+          onPlayListPress={() => console.log('Lista')}
+          currentItem={this.currentItem}
           visible={this.state.optionModalVisible}
           onClose={() => this.setState({ optionModalVisible: false })} // Cierra el modal
         />
@@ -155,7 +157,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#121212',
     padding: 20,
-    paddingBottom: 50, // Agrega espacio para evitar que la barra de navegación tape contenido
+    paddingBottom: 50, // Espacio para evitar que la barra tape contenido
   },
   navbar: {
     flexDirection: 'row',
@@ -172,15 +174,11 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   categoryButton: {
-    
     paddingVertical: 10,
     paddingHorizontal: 20,
     borderRadius: 20,
     marginRight: 10,
-    backgroundColor: 'black', // Hace el fondo transparente
-    borderTopWidth: 0, // Elimina el borde superior
-    elevation: 0, // Elimina la sombra en dispositivos Android
-    
+    backgroundColor: 'black',
   },
   categoryText: {
     color: '#fff',

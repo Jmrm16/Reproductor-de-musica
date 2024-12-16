@@ -1,4 +1,4 @@
-import React, { Component, createContext } from 'react';
+import React, { Component, createContext,} from 'react';
 import { Text, View, Alert } from 'react-native'; 
 import * as MediaLibrary from 'expo-media-library';
 import { DataProvider } from 'recyclerlistview';
@@ -16,7 +16,10 @@ constructor(props) {
         currentAudio: {},
         isPlaying: false,
         currentAudioIndex: null,
+        playbackPosition: null,
+        playbackDuration: null,
     };
+    this.totalAudioCount =0
 }
 
   permissionAllert = () => {
@@ -37,6 +40,7 @@ getAudioFiles = async () => {
       mediaType: 'audio',
       first: media.totalCount,
     });
+    this.totalAudioCount=media.totalCount
     this.setState({ ...this.state, audioFiles: media.assets });
   };
   
@@ -87,7 +91,18 @@ updateState = (prevState, newState = {}) => {
 
 
 render() {
-    const {audioFiles,dataProvider,permissionError ,playbackObj,soundObj,currentAudio,isPlaying,currentAudioIndex, }= this.state
+    const {
+        audioFiles,
+        dataProvider,
+        permissionError,
+        playbackObj,
+        soundObj,
+        currentAudio,
+        isPlaying,
+        currentAudioIndex, 
+        playbackPosition,
+        playbackDuration,
+    }= this.state
     if (this.state.permissionError) {
         return (
             <View style={{
@@ -102,7 +117,19 @@ render() {
         );
     }
     return (
-        <AudioContext.Provider value={{ audioFiles,dataProvider,playbackObj,soundObj,currentAudio,currentAudioIndex, isPlaying, updateState: this.updateState, }}>
+        <AudioContext.Provider value={{ 
+            totalAudioCount: this.totalAudioCount,
+            audioFiles,dataProvider,
+            playbackObj,
+            soundObj,
+            permissionError,
+            currentAudio,
+            currentAudioIndex, 
+            isPlaying,   
+            playbackPosition,
+            playbackDuration,
+            updateState: this.updateState, 
+            }}>
             {this.props.children}
         </AudioContext.Provider>
     );
